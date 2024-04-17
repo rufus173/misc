@@ -1,7 +1,9 @@
 # devious-spyware
 some rather devious multifunctioning spyware
+only funcitonal within my home network
 
 protocols:
+uses port 8017
 constant transmit and receive between server and client at regular intervals (1s maybee? idk can be throttled to help performance)
 in this case server is the machine with the spy program
 they have a buffer that can be filled and is then sent on the next cycle
