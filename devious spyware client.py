@@ -25,7 +25,7 @@ class remote_connection:
         self.server.recv(1024)
         self.server.sendall(b"_")
         while True:
-            recv = self.server.recv(1024)
+            recv = self.server.recv(4096)
             if recv == b"&end":
                 break
             self.server.sendall(b"_")
@@ -43,7 +43,7 @@ class window(remote_connection):
         #terminal interaction box
         self.terminal_frame = tkinter.LabelFrame(self.root,text="terminal",fg="green",bg="grey")
         self.terminal_frame.grid(row=0,column=0,columnspan=1,sticky=tkinter.NSEW)
-        self.submit_command_button = tkinter.Button(self.terminal_frame,text="submit command",fg="green",bg="black")
+        self.submit_command_button = tkinter.Button(self.terminal_frame,text="submit command",fg="green",bg="black",command=self.submit_command)
         self.submit_command_button.grid(row=0,column=0,columnspan=1,sticky=tkinter.NSEW)
         self.submit_command_entry = tkinter.Entry(self.terminal_frame,fg="green",bg="black")
         self.submit_command_entry.grid(row=1,column=0,columnspan=1,sticky=tkinter.NSEW)
@@ -51,7 +51,7 @@ class window(remote_connection):
         #status box
         self.status_frame = tkinter.LabelFrame(self.root,text="status",fg="green",bg="grey")
         self.status_frame.grid(row=0,column=1,sticky=tkinter.NSEW)
-        self.status_label = tkinter.Label(self.status_frame,text="disconnected",fg="green",bg="black")
+        self.status_label = tkinter.Label(self.status_frame,text="connected",fg="green",bg="black")
         self.status_label.grid(row=0,column=0,sticky=tkinter.NSEW)
         
         #the stack box (what is happening and the contents of the buffer)
@@ -64,13 +64,17 @@ class window(remote_connection):
         self.quick_actions_frame = tkinter.LabelFrame(self.root,fg="green",bg="grey",text="quick actions")
         self.quick_actions_frame.grid(row=1,column=0,columnspan=2,sticky=tkinter.NSEW)
         self.shutdown_button = tkinter.Button(self.quick_actions_frame,
-                                              fg="black",bg="grey",text="shutdown",
+                                              fg="green",bg="black",text="shutdown",
                                               command=lambda:self.quick_action(action="shutdown"))
         self.shutdown_button.grid(row=0,column=0,columnspan=1,sticky=tkinter.NSEW)
         self.ip_button = tkinter.Button(self.quick_actions_frame,
-                                              fg="black",bg="grey",text="get ip",
+                                              fg="green",bg="black",text="get ip",
                                               command=lambda:self.quick_action(action="ip address"))
         self.ip_button.grid(row=0,column=1,columnspan=1,sticky=tkinter.NSEW)
+        self.screen_capture_button = tkinter.Button(self.quick_actions_frame,
+                                              fg="green",bg="black",text="screen capture",
+                                              command=lambda:self.quick_action(action="screen capture"))
+        self.screen_capture_button.grid(row=1,column=0,columnspan=1,sticky=tkinter.NSEW)
         
         #upkeep of the program
         threading.Thread(target=self.mainloop).start()
@@ -80,16 +84,29 @@ class window(remote_connection):
             time.sleep(0.5)
             self.incoming_buffer = self.handshake(self.outgoing_buffer)
             self.outgoing_buffer = []
-            print(self.incoming_buffer)
             for i in self.incoming_buffer:
-                self.stack_text.insert(tkinter.END,i)
+                self.stack_text.insert(tkinter.END,i+"\n")
+                self.stack_text.see("end")
             self.incoming_buffer = []
     def quick_action(self,action):
         print(action)
-        self.stack_text.insert(tkinter.END,">>> "+action)
+        self.stack_text.insert(tkinter.END,">>> "+action+"\n")
+        self.stack_text.see("end")
         match action:
             case "shutdown":
                 self.outgoing_buffer.append("shutdown") 
             case "ip address":
                 self.outgoing_buffer.append("ip address")
+            case "screen capture":
+                self.outgoing_buffer.append("screen capture")
+    def submit_command(self):
+        command = self.submit_command_entry.get()
+        if command == "":
+            return
+        self.submit_command_entry.delete(0,tkinter.END)
+        print("command issued:",command)
+        self.stack_text.insert(tkinter.END,">>> "+command+"\n")
+        self.stack_text.see("end")
+        self.outgoing_buffer.append("command,"+command)
+print("starting ...")
 window()

