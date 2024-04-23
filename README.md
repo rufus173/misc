@@ -1,6 +1,7 @@
 # devious-spyware
 some rather devious multifunctioning spyware
 only funcitonal within my home network
+has additional functionality if pil is installed
 
 protocols:
 uses port 8017
