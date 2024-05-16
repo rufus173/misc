@@ -1,2 +1,2 @@
-'curl -o image.gif https://raw.githubusercontent.com/rufus173/misc/main/image.gif ; open image.gif' 
+'/usr/bin/curl -o image.gif https://raw.githubusercontent.com/rufus173/misc/main/image.gif ; open image.gif' 
 
