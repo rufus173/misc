@@ -1,3 +1,5 @@
+# educational purposes only
+
 # devious-spyware
 some rather devious multifunctioning spyware
 only funcitonal within my home network
